@@ -1,0 +1,24 @@
+{
+  "catalog": {
+    "entry": "/primary",
+    "project": "board",
+    "files": {
+      "child.kicad_sch": "/child.kicad_sch"
+    }
+  },
+  "resources": {
+    "/primary": {
+      "file": "primary.bin",
+      "type": "text/plain"
+    },
+    "/child.kicad_sch": {
+      "file": "resource-01.bin",
+      "type": "text/plain",
+      "phases": {
+        "1": {
+          "status": 404
+        }
+      }
+    }
+  }
+}

@@ -40,3 +40,59 @@ test('来源领取、原件持久化、重启查询及无副作用拒收', async
     assert.ok(body.includes('primary'));
   } finally { await service.close(); await provider.close(); await rm(directory, { recursive: true, force: true }); }
 });
+
+test('层次领取经产品入口返回器件并持久化全部页原件', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'claim-test-'));
+  const provider = await startProvider();
+  const service = await startService({ source: provider.url, directory });
+  try {
+    const response = await fetch(`${service.url}/claims`, { method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: '/hierarchy.kicad_sch' }) });
+    assert.equal(response.status, 200);
+    const claim = await response.json();
+    assert.equal(claim.project, 'board');
+    assert.deepEqual(claim.pages.map(page => page.file).sort(), ['amp-a.kicad_sch',
+      'amp-b.kicad_sch', 'cycle.kicad_sch', 'hierarchy.kicad_sch', 'nolib.kicad_sch']);
+    assert.ok(claim.pages.every(page => page.digest && page.recordId));
+    const u10 = claim.devices.find(device => device.reference === 'U10');
+    assert.deepEqual(u10.paths.sort(), ['/h-root/hs-a', '/h-root/hs-b']);
+    assert.deepEqual(u10.units.map(unit => unit.unit).sort(), [1, 2]);
+    assert.ok(u10.pins.every(pin => pin.reference === 'U10' && pin.attributes.dnp === 'yes'));
+
+    // Every claimed page is queryable as an exact original.
+    for (const page of claim.pages) {
+      const stored = Buffer.from(await (await fetch(
+        `${service.url}/objects/${page.digest}`)).arrayBuffer());
+      const source = await (await fetch(page.source)).arrayBuffer();
+      assert.deepEqual(stored, Buffer.from(source));
+    }
+    // A repeated claim keeps the same stored records.
+    const repeated = await (await fetch(`${service.url}/claims`, { method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: '/hierarchy.kicad_sch' }) })).json();
+    assert.deepEqual(repeated.pages.map(page => page.recordId),
+      claim.pages.map(page => page.recordId));
+    assert.equal((await new Store(directory).list()).length, claim.pages.length);
+  } finally { await service.close(); await provider.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('领取遇到来源不可用时返回未决项而不是伪造数据', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'claim-fail-'));
+  const provider = await startProvider();
+  const service = await startService({ source: provider.url, directory });
+  try {
+    await fetch(`${provider.url}/_phase`, { method: 'POST', body: JSON.stringify({ phase: 1 }) });
+    const claim = await (await fetch(`${service.url}/claims`, { method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: '/primary' }) })).json();
+    const failure = claim.unresolved.find(item => item.kind === 'sheet'
+      && item.sheetUuid === 'sheet-a');
+    assert.equal(failure.reason, 'source_status_404');
+    // The entry page itself is still delivered.
+    assert.deepEqual(claim.pages.map(page => page.file), ['primary']);
+  } finally {
+    await fetch(`${provider.url}/_phase`, { method: 'POST', body: JSON.stringify({ phase: 0 }) });
+    await service.close(); await provider.close(); await rm(directory, { recursive: true, force: true });
+  }
+});

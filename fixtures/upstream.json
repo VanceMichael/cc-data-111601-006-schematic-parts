@@ -3,7 +3,12 @@
     "entry": "/primary",
     "project": "board",
     "files": {
-      "child.kicad_sch": "/child.kicad_sch"
+      "child.kicad_sch": "/child.kicad_sch",
+      "hierarchy.kicad_sch": "/hierarchy.kicad_sch",
+      "amp-a.kicad_sch": "/amp-a.kicad_sch",
+      "amp-b.kicad_sch": "/amp-b.kicad_sch",
+      "cycle.kicad_sch": "/cycle.kicad_sch",
+      "nolib.kicad_sch": "/nolib.kicad_sch"
     }
   },
   "resources": {
@@ -19,6 +24,26 @@
           "status": 404
         }
       }
+    },
+    "/hierarchy.kicad_sch": {
+      "file": "hierarchy.bin",
+      "type": "text/plain"
+    },
+    "/amp-a.kicad_sch": {
+      "file": "amp-a.bin",
+      "type": "text/plain"
+    },
+    "/amp-b.kicad_sch": {
+      "file": "amp-b.bin",
+      "type": "text/plain"
+    },
+    "/cycle.kicad_sch": {
+      "file": "cycle.bin",
+      "type": "text/plain"
+    },
+    "/nolib.kicad_sch": {
+      "file": "nolib.bin",
+      "type": "text/plain"
     }
   }
 }

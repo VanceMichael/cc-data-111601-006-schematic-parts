@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { Store } from './store.mjs';
 import { acquire } from './transport.mjs';
 import { inspect } from './reader.mjs';
+import { claimParts } from './claim.mjs';
 import { startProvider } from './provider.mjs';
 
 export async function startService({ source, directory, port = 0 }) {
@@ -31,6 +32,20 @@ export async function startService({ source, directory, port = 0 }) {
         const record = await store.accept(result.bytes, new URL(payload.path, source).href, parsed);
         response.statusCode = 201;
         return response.end(JSON.stringify(record));
+      }
+      if (url.pathname === '/claims' && request.method === 'POST') {
+        const chunks = []; let length = 0;
+        for await (const chunk of request) {
+          length += chunk.length;
+          if (length > 16384) throw new Error('request_too_large');
+          chunks.push(chunk);
+        }
+        const payload = JSON.parse(Buffer.concat(chunks).toString());
+        if (payload.path !== undefined && typeof payload.path !== 'string') {
+          throw new Error('path_invalid');
+        }
+        const result = await claimParts({ source, store, path: payload.path ?? null });
+        return response.end(JSON.stringify(result));
       }
       response.writeHead(404); response.end(JSON.stringify({ error: 'not_found' }));
     } catch (error) { response.statusCode = 422; response.end(JSON.stringify({ error: error.message })); }

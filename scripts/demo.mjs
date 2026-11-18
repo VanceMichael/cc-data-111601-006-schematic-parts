@@ -13,5 +13,19 @@ try {
     headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: '/primary' }) });
   if (response.status !== 201) throw new Error(await response.text());
   console.log('接收结果', await response.json());
+  const claimResponse = await fetch(`${service.url}/claims`, { method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: '/hierarchy.kicad_sch' }) });
+  if (claimResponse.status !== 200) throw new Error(await claimResponse.text());
+  const claim = await claimResponse.json();
+  console.log('层次领取页', claim.pages.map(page => page.file));
+  console.log('器件', claim.devices.map(device => ({
+    reference: device.reference,
+    units: device.units.map(unit => unit.unit),
+    pins: device.pins.map(pin => `${pin.reference}.${pin.number}@unit${pin.unit}`),
+    attributes: device.attributes,
+    paths: device.paths
+  })));
+  console.log('未决项', claim.unresolved);
   console.log('已保存资料', await (await fetch(`${service.url}/records`)).json());
 } finally { await service.close(); await provider.close(); await rm(directory, { recursive: true, force: true }); }
